@@ -79,26 +79,30 @@ export function useProtocolDetection(timeout = 2000): ProtocolDetectionResult {
       window.addEventListener("blur", handleBlur)
       document.addEventListener("visibilitychange", handleVisibilityChange)
 
-      // Create an invisible iframe to attempt protocol
-      // This prevents the browser from showing "page not found" if protocol fails
-      const iframe = document.createElement("iframe")
-      iframe.style.display = "none"
-      document.body.appendChild(iframe)
+      // Try multiple methods to open the protocol URL
+      // Method 1: Use a hidden link click (most reliable for custom protocols)
+      const link = document.createElement("a")
+      link.href = protocolUrl
+      link.style.display = "none"
+      document.body.appendChild(link)
 
       try {
-        // Attempt to open protocol URL
-        if (iframe.contentWindow) {
-          iframe.contentWindow.location.href = protocolUrl
-        }
+        link.click()
       } catch {
         // Protocol error - might not be registered
-        console.log("Protocol attempt threw error")
+        console.log("Protocol click attempt threw error")
       }
+
+      // Clean up link
+      setTimeout(() => {
+        if (link.parentNode) {
+          document.body.removeChild(link)
+        }
+      }, 100)
 
       // Set timeout to check if app launched
       timeoutRef.current = setTimeout(() => {
         cleanup()
-        document.body.removeChild(iframe)
         setIsAttempting(false)
 
         if (!detectedRef.current) {
@@ -106,13 +110,6 @@ export function useProtocolDetection(timeout = 2000): ProtocolDetectionResult {
           setShowDownloadModal(true)
         }
       }, timeout)
-
-      // Cleanup iframe after longer timeout
-      setTimeout(() => {
-        if (iframe.parentNode) {
-          document.body.removeChild(iframe)
-        }
-      }, timeout + 500)
     },
     [timeout]
   )

@@ -7,6 +7,21 @@ import type {
 
 const RD_BASE_URL = "https://api.real-debrid.com/rest/1.0"
 
+// Check if we're in Tauri
+const isTauri = typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__
+
+// Lazy-loaded Tauri HTTP fetch
+let tauriFetchPromise: Promise<typeof fetch> | null = null
+
+async function getTauriFetch(): Promise<typeof fetch> {
+  if (!isTauri) return fetch
+
+  if (!tauriFetchPromise) {
+    tauriFetchPromise = import("@tauri-apps/plugin-http").then((module) => module.fetch)
+  }
+  return tauriFetchPromise
+}
+
 class RealDebridService {
   private apiToken: string
 
@@ -18,7 +33,10 @@ class RealDebridService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const response = await fetch(`${RD_BASE_URL}${endpoint}`, {
+    // Use Tauri's fetch in desktop app to bypass CORS
+    const fetchFn = await getTauriFetch()
+
+    const response = await fetchFn(`${RD_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         Authorization: `Bearer ${this.apiToken}`,

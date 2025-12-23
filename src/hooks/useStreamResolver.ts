@@ -4,6 +4,7 @@ import { useState, useCallback } from "react"
 import { useAuthStore } from "@/stores/auth"
 import { useProvidersStore } from "@/stores/providers"
 import { useSettingsStore } from "@/stores/settings"
+import { useTauri } from "@/hooks/useTauri"
 import { createRDService } from "@/services/realdebrid"
 import type { StreamItem } from "@/types/provider"
 
@@ -298,6 +299,10 @@ export function useStreamResolver(): UseStreamResolverResult {
   const { rdApiToken } = useAuthStore()
   const { getActiveProvider } = useProvidersStore()
   const { preferredQuality } = useSettingsStore()
+  const { isTauri, mpvAvailable } = useTauri()
+
+  // In Tauri with MPV, all formats are compatible
+  const skipCompatibilityCheck = isTauri && mpvAvailable
 
   const resolve = useCallback(
     async (
@@ -331,8 +336,20 @@ export function useStreamResolver(): UseStreamResolverResult {
         const directUrlStreams = sortedStreams.filter(s => s.url)
 
         if (directUrlStreams.length > 0) {
-          // Apply smart format filtering for browser compatibility
           const bestOverall = directUrlStreams[0]
+
+          // In Tauri with MPV, skip compatibility filtering - just use the best stream
+          if (skipCompatibilityCheck) {
+            console.log("Tauri+MPV: Using best quality stream directly:", bestOverall.title)
+            return {
+              url: bestOverall.url!,
+              title: bestOverall.title,
+              quality: bestOverall.quality,
+              hash: bestOverall.hash,
+            }
+          }
+
+          // Apply smart format filtering for browser compatibility
           const bestQualityRank = getQualityRank(bestOverall.quality)
 
           // Find best compatible stream at the same quality
@@ -439,7 +456,7 @@ export function useStreamResolver(): UseStreamResolverResult {
         setIsResolving(false)
       }
     },
-    [rdApiToken, getActiveProvider, preferredQuality]
+    [rdApiToken, getActiveProvider, preferredQuality, skipCompatibilityCheck]
   )
 
   const clearError = useCallback(() => {
