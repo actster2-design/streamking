@@ -201,4 +201,12 @@ export interface AppSettings {
   autoPlay: boolean
   subtitlesEnabled: boolean
   subtitlesLanguage: string
+  desktopSettings: DesktopSettings
+}
+
+export interface DesktopSettings {
+  /** Always use desktop player (MPV) instead of browser player */
+  alwaysUseDesktopPlayer: boolean
+  /** Skip browser compatibility check and select highest quality stream */
+  preferHighestQuality: boolean
 }

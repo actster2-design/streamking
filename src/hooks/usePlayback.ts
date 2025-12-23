@@ -70,6 +70,8 @@ export function usePlayback(): UsePlaybackResult {
       openPlayer(playerMedia, stream.url, {
         title: stream.title,
         quality: stream.quality,
+        qualityWarning: stream.qualityWarning,
+        incompatibleStreamUrl: stream.incompatibleStreamUrl,
       })
 
       // Initialize progress tracking

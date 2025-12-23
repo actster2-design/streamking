@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { AccountSection } from "./AccountSection"
 import { ProvidersSection } from "./ProvidersSection"
 import { PlaybackSection } from "./PlaybackSection"
+import { DesktopSection } from "./DesktopSection"
 import { AppearanceSection } from "./AppearanceSection"
 
 interface SettingsSheetProps {
@@ -48,6 +49,7 @@ export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
               <Separator />
               <PlaybackSection />
               <Separator />
+              <DesktopSection />
               <AppearanceSection />
             </div>
           </div>

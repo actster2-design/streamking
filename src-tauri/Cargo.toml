@@ -1,0 +1,28 @@
+[package]
+name = "stream-king"
+version = "0.1.0"
+description = "Stream King - High-fidelity streaming with full format support"
+authors = ["Stream King"]
+license = "MIT"
+repository = "https://github.com/actster2-design/streamking"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "stream_king_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-shell = "2"
+libmpv2 = "4"
+tokio = { version = "1", features = ["process", "sync"] }
+url = "2"

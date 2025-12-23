@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { AppSettings } from "@/types"
+import type { AppSettings, DesktopSettings } from "@/types"
 
 interface SettingsState extends AppSettings {
   setTheme: (theme: AppSettings["theme"]) => void
@@ -8,7 +8,13 @@ interface SettingsState extends AppSettings {
   setAutoPlay: (autoPlay: boolean) => void
   setSubtitlesEnabled: (enabled: boolean) => void
   setSubtitlesLanguage: (language: string) => void
+  setDesktopSettings: (settings: Partial<DesktopSettings>) => void
   resetSettings: () => void
+}
+
+const defaultDesktopSettings: DesktopSettings = {
+  alwaysUseDesktopPlayer: false,
+  preferHighestQuality: false,
 }
 
 const defaultSettings: AppSettings = {
@@ -17,6 +23,7 @@ const defaultSettings: AppSettings = {
   autoPlay: true,
   subtitlesEnabled: true,
   subtitlesLanguage: "en",
+  desktopSettings: defaultDesktopSettings,
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -33,6 +40,14 @@ export const useSettingsStore = create<SettingsState>()(
       setSubtitlesEnabled: (subtitlesEnabled) => set({ subtitlesEnabled }),
 
       setSubtitlesLanguage: (subtitlesLanguage) => set({ subtitlesLanguage }),
+
+      setDesktopSettings: (settings) =>
+        set((state) => ({
+          desktopSettings: {
+            ...state.desktopSettings,
+            ...settings,
+          },
+        })),
 
       resetSettings: () => set(defaultSettings),
     }),

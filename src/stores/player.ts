@@ -12,6 +12,15 @@ export interface PlayerMedia {
   episodeTitle?: string
 }
 
+interface StreamInfo {
+  title?: string
+  quality?: string
+  /** Warning message when format isn't fully browser-compatible */
+  qualityWarning?: string
+  /** URL of the highest quality stream (may not be browser-compatible) */
+  incompatibleStreamUrl?: string
+}
+
 interface PlayerState {
   // Player visibility
   isOpen: boolean
@@ -25,17 +34,22 @@ interface PlayerState {
   streamTitle: string | null
   streamQuality: string | null
 
+  // Quality/format warnings
+  qualityWarning: string | null
+  incompatibleStreamUrl: string | null
+
   // Playback state
   isLoading: boolean
   error: string | null
 
   // Actions
-  openPlayer: (media: PlayerMedia, streamUrl: string, streamInfo?: { title?: string; quality?: string }) => void
+  openPlayer: (media: PlayerMedia, streamUrl: string, streamInfo?: StreamInfo) => void
   closePlayer: () => void
   setFullscreen: (fullscreen: boolean) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   clearError: () => void
+  dismissWarning: () => void
 }
 
 export const usePlayerStore = create<PlayerState>((set) => ({
@@ -45,6 +59,8 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   streamUrl: null,
   streamTitle: null,
   streamQuality: null,
+  qualityWarning: null,
+  incompatibleStreamUrl: null,
   isLoading: false,
   error: null,
 
@@ -56,6 +72,8 @@ export const usePlayerStore = create<PlayerState>((set) => ({
       streamUrl,
       streamTitle: streamInfo?.title ?? null,
       streamQuality: streamInfo?.quality ?? null,
+      qualityWarning: streamInfo?.qualityWarning ?? null,
+      incompatibleStreamUrl: streamInfo?.incompatibleStreamUrl ?? null,
       isLoading: false,
       error: null,
     }),
@@ -68,6 +86,8 @@ export const usePlayerStore = create<PlayerState>((set) => ({
       streamUrl: null,
       streamTitle: null,
       streamQuality: null,
+      qualityWarning: null,
+      incompatibleStreamUrl: null,
       isLoading: false,
       error: null,
     }),
@@ -79,4 +99,6 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   setError: (error) => set({ error, isLoading: false }),
 
   clearError: () => set({ error: null }),
+
+  dismissWarning: () => set({ qualityWarning: null }),
 }))

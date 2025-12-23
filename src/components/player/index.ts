@@ -1,3 +1,6 @@
 export { VideoPlayer } from "./VideoPlayer"
 export { LoadingOverlay } from "./LoadingOverlay"
 export { PlayerPortal } from "./PlayerPortal"
+export { DesktopPlayerButton } from "./DesktopPlayerButton"
+export { QualityWarningBanner } from "./QualityWarningBanner"
+export { DownloadAppModal } from "./DownloadAppModal"

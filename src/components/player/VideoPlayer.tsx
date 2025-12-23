@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { usePlayerStore } from "@/stores/player"
 import { useWatchProgressStore } from "@/stores/watch-progress"
 import { getBackdropUrl } from "@/services/tmdb"
+import { QualityWarningBanner } from "./QualityWarningBanner"
 
 /**
  * VideoPlayer - Full-screen video player with Vidstack
@@ -38,7 +39,10 @@ export function VideoPlayer() {
     streamUrl,
     streamTitle,
     streamQuality,
+    qualityWarning,
+    incompatibleStreamUrl,
     closePlayer,
+    dismissWarning,
   } = usePlayerStore()
 
   const { getProgress, setProgress } = useWatchProgressStore()
@@ -165,6 +169,23 @@ export function VideoPlayer() {
               </Button>
             </div>
           </div>
+
+          {/* Quality Warning Banner */}
+          {qualityWarning && currentMedia && (
+            <div className="absolute top-24 left-0 right-0 z-10 px-4 md:px-6">
+              <QualityWarningBanner
+                message={qualityWarning}
+                incompatibleStreamUrl={incompatibleStreamUrl ?? undefined}
+                title={title}
+                quality={streamQuality ?? undefined}
+                tmdbId={currentMedia.tmdbId}
+                mediaType={currentMedia.mediaType}
+                season={currentMedia.season}
+                episode={currentMedia.episode}
+                onDismiss={dismissWarning}
+              />
+            </div>
+          )}
 
           {/* Video Player */}
           <MediaPlayer

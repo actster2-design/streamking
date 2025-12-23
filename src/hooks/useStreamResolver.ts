@@ -12,7 +12,12 @@ interface ResolvedStream {
   title: string
   quality: string
   hash: string
-  qualityWarning?: string  // Warning if quality was reduced for compatibility
+  /** Warning message if quality was reduced for compatibility */
+  qualityWarning?: string
+  /** Whether the best stream has an incompatible format */
+  hasIncompatibleFormat?: boolean
+  /** URL of the highest quality stream (may not be browser-compatible) */
+  incompatibleStreamUrl?: string
 }
 
 interface UseStreamResolverResult {
@@ -351,9 +356,11 @@ export function useStreamResolver(): UseStreamResolverResult {
           if (bestCompatible && bestCompatible.url) {
             const qualityDrop = getQualityRank(bestCompatible.quality) - bestQualityRank
             let qualityWarning: string | undefined
+            let incompatibleStreamUrl: string | undefined
 
             if (qualityDrop > 0) {
               qualityWarning = `Best quality (${bestOverall.quality}) unavailable in browser-compatible format. Playing ${bestCompatible.quality} instead. For full quality, use the desktop app.`
+              incompatibleStreamUrl = bestOverall.url
               console.log("Quality warning:", qualityWarning)
             }
 
@@ -364,6 +371,8 @@ export function useStreamResolver(): UseStreamResolverResult {
               quality: bestCompatible.quality,
               hash: bestCompatible.hash,
               qualityWarning,
+              hasIncompatibleFormat: qualityDrop > 0,
+              incompatibleStreamUrl,
             }
           }
 
@@ -375,6 +384,8 @@ export function useStreamResolver(): UseStreamResolverResult {
             quality: bestOverall.quality,
             hash: bestOverall.hash,
             qualityWarning: `Warning: This format (${bestOverall.filename || 'unknown'}) may not play in your browser. Consider using the desktop app for full compatibility.`,
+            hasIncompatibleFormat: true,
+            incompatibleStreamUrl: bestOverall.url!,
           }
         }
 
