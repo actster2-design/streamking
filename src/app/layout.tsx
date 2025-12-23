@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { PlayerPortal } from "@/components/player/PlayerPortal";
-import { TitleBar, TitleBarPadding } from "@/components/ui/TitleBar";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -22,10 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <TitleBar />
-        <TitleBarPadding>
-          {children}
-        </TitleBarPadding>
+        {children}
         <PlayerPortal />
       </body>
     </html>
