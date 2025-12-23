@@ -28,11 +28,14 @@ interface AuthState {
   clearAllAuth: () => void
 }
 
+// Default RealDebrid API key (pre-configured)
+const DEFAULT_RD_API_KEY = "V6O35W2PTNY2EOIILXN2ZNDOVZE5OI2PHQRUXUQO5CDH5C7PVUMA"
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      // RealDebrid state
-      rdApiToken: null,
+      // RealDebrid state - pre-configured with default key
+      rdApiToken: DEFAULT_RD_API_KEY,
       rdUser: null,
       setRdAuth: (token, user) =>
         set({
@@ -65,8 +68,8 @@ export const useAuthStore = create<AuthState>()(
           traktExpiresAt: null,
         }),
 
-      // General
-      isOnboarded: false,
+      // General - pre-configured, skip onboarding
+      isOnboarded: true,
       setOnboarded: (onboarded) => set({ isOnboarded: onboarded }),
       clearAllAuth: () =>
         set({
@@ -80,7 +83,7 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: "stream-king-auth",
+      name: "stream-king-auth-v2",
     }
   )
 )

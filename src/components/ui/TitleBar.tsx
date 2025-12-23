@@ -3,9 +3,6 @@
 import { useState, useEffect } from "react"
 import { Minus, Square, X, Maximize2 } from "lucide-react"
 
-// Check if we're in Tauri
-const isTauri = typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__
-
 /**
  * Custom title bar for Tauri desktop app
  *
@@ -13,7 +10,14 @@ const isTauri = typeof window !== "undefined" && !!(window as unknown as { __TAU
  * Provides window controls (minimize, maximize, close) and drag region.
  */
 export function TitleBar() {
+  const [isTauri, setIsTauri] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
+
+  // Detect Tauri on client side
+  useEffect(() => {
+    const checkTauri = !!(window as unknown as { __TAURI__?: unknown }).__TAURI__
+    setIsTauri(checkTauri)
+  }, [])
 
   useEffect(() => {
     if (!isTauri) return
@@ -126,6 +130,13 @@ export function TitleBar() {
  * Use this to wrap your main content when using the custom title bar
  */
 export function TitleBarPadding({ children }: { children: React.ReactNode }) {
+  const [isTauri, setIsTauri] = useState(false)
+
+  useEffect(() => {
+    const checkTauri = !!(window as unknown as { __TAURI__?: unknown }).__TAURI__
+    setIsTauri(checkTauri)
+  }, [])
+
   if (!isTauri) return <>{children}</>
 
   return <div className="pt-8">{children}</div>
