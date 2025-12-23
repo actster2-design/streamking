@@ -1,12 +1,38 @@
 "use client"
 
-import { User, Crown, LogOut, ExternalLink } from "lucide-react"
+import { useState } from "react"
+import { User, Crown, LogOut, ExternalLink, Save, Loader2, Edit2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { useAuthStore } from "@/stores/auth"
+import { createRDService } from "@/services/realdebrid"
 
 export function AccountSection() {
-  const { rdUser, rdApiToken, clearRdAuth } = useAuthStore()
+  const { rdUser, rdApiToken, setRdAuth, clearRdAuth } = useAuthStore()
+  const [isEditing, setIsEditing] = useState(false)
+  const [tokenInput, setTokenInput] = useState("")
+  const [isValidating, setIsValidating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSaveToken = async () => {
+    if (!tokenInput.trim()) return
+
+    setIsValidating(true)
+    setError(null)
+
+    try {
+      const rd = createRDService(tokenInput.trim())
+      const user = await rd.getUser()
+      setRdAuth(tokenInput.trim(), user)
+      setIsEditing(false)
+      setTokenInput("")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid API token")
+    } finally {
+      setIsValidating(false)
+    }
+  }
 
   const handleDisconnect = () => {
     clearRdAuth()
@@ -41,12 +67,79 @@ export function AccountSection() {
                 </p>
               )}
             </div>
-          ) : (
+          ) : rdApiToken && !isEditing ? (
+            <p className="text-sm text-muted-foreground">Token configured (user info unavailable)</p>
+          ) : !isEditing ? (
             <p className="text-sm text-muted-foreground">Not connected</p>
+          ) : null}
+
+          {/* Token input form */}
+          {isEditing && (
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="Paste your RealDebrid API token"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                disabled={isValidating}
+                className="font-mono text-sm"
+              />
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleSaveToken}
+                  disabled={!tokenInput.trim() || isValidating}
+                >
+                  {isValidating ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  {isValidating ? "Validating..." : "Save Token"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditing(false)
+                    setTokenInput("")
+                    setError(null)
+                  }}
+                  disabled={isValidating}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
           )}
 
-          <div className="pt-1">
-            {rdApiToken ? (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {!isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  {rdApiToken ? "Change Token" : "Enter Token"}
+                </Button>
+                <Button variant="ghost" size="sm" asChild>
+                  <a
+                    href="https://real-debrid.com/apitoken"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Get Token
+                  </a>
+                </Button>
+              </>
+            )}
+            {rdApiToken && !isEditing && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -55,17 +148,6 @@ export function AccountSection() {
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Disconnect
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" asChild>
-                <a
-                  href="https://real-debrid.com/apitoken"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Get Token
-                </a>
               </Button>
             )}
           </div>
