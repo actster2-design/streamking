@@ -20,11 +20,22 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 9)
 }
 
+// Pre-configured Comet provider with RealDebrid
+// Config: maxResultsPerResolution=0, maxSize=0, cachedOnly=false, removeTrash=true, resultFormat=all, debridService=realdebrid
+const DEFAULT_COMET_URL = "https://comet.elfhosted.com/eyJtYXhSZXN1bHRzUGVyUmVzb2x1dGlvbiI6MCwibWF4U2l6ZSI6MCwiY2FjaGVkT25seSI6ZmFsc2UsInJlbW92ZVRyYXNoIjp0cnVlLCJyZXN1bHRGb3JtYXQiOlsiYWxsIl0sImRlYnJpZFNlcnZpY2UiOiJyZWFsZGVicmlkIiwiZGVicmlkQXBpS2V5IjoiVjZPMzVXMlBUTlkyRU9JSUxYTjJaTkRPVlpFNU9JMlBIUVJVWFVRTzVDREg1QzdQVlVNQSIsImRlYnJpZFN0cmVhbVByb3h5UGFzc3dvcmQiOiIiLCJsYW5ndWFnZXMiOnsiZXhjbHVkZSI6W10sInByZWZlcnJlZCI6WyJlbiJdfSwicmVzb2x1dGlvbnMiOnt9LCJvcHRpb25zIjp7InJlbW92ZV9yYW5rc191bmRlciI6LTEwMDAwMDAwMDAwLCJhbGxvd19lbmdsaXNoX2luX2xhbmd1YWdlcyI6ZmFsc2UsInJlbW92ZV91bmtub3duX2xhbmd1YWdlcyI6ZmFsc2V9fQ=="
+
+const DEFAULT_PROVIDER: ProviderConfig = {
+  id: "comet-default",
+  name: "Comet (RealDebrid)",
+  url: DEFAULT_COMET_URL,
+  enabled: true,
+}
+
 export const useProvidersStore = create<ProvidersState>()(
   persist(
     (set, get) => ({
-      providers: [],
-      activeProviderId: null,
+      providers: [DEFAULT_PROVIDER],
+      activeProviderId: "comet-default",
 
       addProvider: (provider) => {
         const newProvider: ProviderConfig = {
@@ -83,6 +94,19 @@ export const useProvidersStore = create<ProvidersState>()(
     }),
     {
       name: "stream-king-providers",
+      version: 2,
+      migrate: (persistedState, version) => {
+        const state = persistedState as ProvidersState
+        // If no providers configured, add the default Comet provider
+        if (!state.providers || state.providers.length === 0) {
+          return {
+            ...state,
+            providers: [DEFAULT_PROVIDER],
+            activeProviderId: "comet-default",
+          }
+        }
+        return state
+      },
     }
   )
 )

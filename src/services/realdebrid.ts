@@ -7,21 +7,6 @@ import type {
 
 const RD_BASE_URL = "https://api.real-debrid.com/rest/1.0"
 
-// Check if we're in Tauri
-const isTauri = typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__
-
-// Lazy-loaded Tauri HTTP fetch
-let tauriFetchPromise: Promise<typeof fetch> | null = null
-
-async function getTauriFetch(): Promise<typeof fetch> {
-  if (!isTauri) return fetch
-
-  if (!tauriFetchPromise) {
-    tauriFetchPromise = import("@tauri-apps/plugin-http").then((module) => module.fetch)
-  }
-  return tauriFetchPromise
-}
-
 class RealDebridService {
   private apiToken: string
 
@@ -33,31 +18,86 @@ class RealDebridService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    // Use Tauri's fetch in desktop app to bypass CORS
-    const fetchFn = await getTauriFetch()
+    const url = `${RD_BASE_URL}${endpoint}`
 
-    const response = await fetchFn(`${RD_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${this.apiToken}`,
-        ...options.headers,
-      },
-    })
+    console.log(`RealDebrid API: ${options.method || "GET"} ${endpoint}`)
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(
-        error.error || `RealDebrid API error: ${response.status}`
-      )
+    try {
+      // Import fetch dynamically or from plugin
+      // For Tauri, we want to use the native fetch to bypass CORS
+      let fetchFn = globalThis.fetch;
+
+      const isTauri = typeof window !== 'undefined' &&
+        ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+      if (isTauri) {
+        try {
+          const { fetch } = await import('@tauri-apps/plugin-http');
+          fetchFn = fetch;
+          console.log("Using Tauri HTTP plugin fetch");
+        } catch (e) {
+          console.error("Failed to load tauri fetch plugin", e);
+        }
+      }
+
+      const response = await fetchFn(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${this.apiToken}`,
+          ...options.headers,
+        },
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        console.error("RealDebrid API error:", response.status, error)
+        throw new Error(
+          error.error || `RealDebrid API error: ${response.status}`
+        )
+      }
+
+      return response.json()
+    } catch (err) {
+      console.error("RealDebrid fetch failed:", err)
+      throw err
     }
-
-    return response.json()
   }
 
   /**
    * Get current user info
    */
+  /**
+   * Get current user info
+   */
   async getUser(): Promise<RDUser> {
+    const isTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+    if (isTauri && window.__TAURI__?.core?.invoke) {
+      console.log("Using Rust backend for RD validation");
+      try {
+        interface RDValidationResult {
+          valid: boolean;
+          user: RDUser | null;
+          error: string | null;
+        }
+
+        const result = await window.__TAURI__.core.invoke<RDValidationResult>('validate_rd_token', {
+          token: this.apiToken
+        });
+
+        if (result.valid && result.user) {
+          return result.user;
+        } else {
+          throw new Error(result.error || "Validation failed");
+        }
+      } catch (e) {
+        console.error("Rust backend validation failed:", e);
+        // Fallback or re-throw? Re-throw for now to be clear
+        throw e;
+      }
+    }
+
     return this.fetch<RDUser>("/user")
   }
 
@@ -65,9 +105,24 @@ class RealDebridService {
    * Check if torrents are instantly available (cached)
    * @param hashes - Array of torrent info hashes
    */
+  /**
+   * Check if torrents are instantly available (cached)
+   * @param hashes - Array of torrent info hashes
+   */
   async checkInstantAvailability(
     hashes: string[]
   ): Promise<RDInstantAvailability> {
+    const isTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+    if (isTauri && window.__TAURI__?.core?.invoke) {
+      console.log("Using Rust backend for availability check");
+      return window.__TAURI__.core.invoke<RDInstantAvailability>('rd_check_instant_availability', {
+        token: this.apiToken,
+        hashes
+      });
+    }
+
     const hashString = hashes.join("/")
     return this.fetch<RDInstantAvailability>(
       `/torrents/instantAvailability/${hashString}`
@@ -79,6 +134,17 @@ class RealDebridService {
    * @param magnet - Magnet URI
    */
   async addMagnet(magnet: string): Promise<{ id: string; uri: string }> {
+    const isTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+    if (isTauri && window.__TAURI__?.core?.invoke) {
+      console.log("Using Rust backend for adding magnet");
+      return window.__TAURI__.core.invoke<{ id: string; uri: string }>('rd_add_magnet', {
+        token: this.apiToken,
+        magnet
+      });
+    }
+
     const formData = new URLSearchParams()
     formData.append("magnet", magnet)
 
@@ -95,6 +161,16 @@ class RealDebridService {
    * Get torrent info
    */
   async getTorrentInfo(id: string): Promise<RDTorrentInfo> {
+    const isTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+    if (isTauri && window.__TAURI__?.core?.invoke) {
+      return window.__TAURI__.core.invoke<RDTorrentInfo>('rd_get_torrent_info', {
+        token: this.apiToken,
+        id
+      });
+    }
+
     return this.fetch<RDTorrentInfo>(`/torrents/info/${id}`)
   }
 
@@ -104,6 +180,18 @@ class RealDebridService {
    * @param files - File IDs to select (comma-separated) or "all"
    */
   async selectFiles(id: string, files: string = "all"): Promise<void> {
+    const isTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+    if (isTauri && window.__TAURI__?.core?.invoke) {
+      await window.__TAURI__.core.invoke('rd_select_files', {
+        token: this.apiToken,
+        id,
+        files
+      });
+      return;
+    }
+
     const formData = new URLSearchParams()
     formData.append("files", files)
 
@@ -120,6 +208,17 @@ class RealDebridService {
    * Unrestrict a link to get direct download URL
    */
   async unrestrictLink(link: string): Promise<RDUnrestrictedLink> {
+    const isTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+    if (isTauri && window.__TAURI__?.core?.invoke) {
+      console.log("Using Rust backend for unrestrict");
+      return window.__TAURI__.core.invoke<RDUnrestrictedLink>('rd_unrestrict_link', {
+        token: this.apiToken,
+        link
+      });
+    }
+
     const formData = new URLSearchParams()
     formData.append("link", link)
 

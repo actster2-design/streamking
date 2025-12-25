@@ -62,60 +62,131 @@ interface ExtendedStreamItem extends StreamItem {
 
 /**
  * Check if a file format is browser-compatible
- * Browsers support: MP4/WebM containers with H.264/H.265/VP9 video and AAC/Opus/MP3 audio
+ * Browsers reliably support: MP4 with H.264 video + AAC audio
+ * WebM with VP8/VP9 video + Vorbis/Opus audio also works
+ *
+ * We're STRICT here - if we can't confirm compatibility, assume incompatible
  */
 function checkBrowserCompatibility(filename?: string, description?: string): boolean {
-  if (!filename && !description) return false
-
   const text = `${filename || ""} ${description || ""}`.toLowerCase()
 
-  // Check container format
-  const isCompatibleContainer = /\.(mp4|webm|m4v)$/i.test(filename || "") ||
-    text.includes(".mp4") || text.includes(".webm")
+  // No info to check - can't confirm compatibility
+  if (!text.trim()) return false
 
-  // Check for incompatible audio codecs
+  // === DEFINITELY INCOMPATIBLE ===
+
+  // Incompatible audio codecs (DTS variants, lossless audio)
   const hasIncompatibleAudio =
-    text.includes("dts") ||
-    text.includes("truehd") ||
-    text.includes("atmos") ||
+    /\bdts\b/.test(text) ||
     text.includes("dts-hd") ||
-    text.includes("dts:x")
+    text.includes("dts:x") ||
+    text.includes("dtsx") ||
+    text.includes("truehd") ||
+    text.includes("true-hd") ||
+    text.includes("atmos") ||
+    text.includes("lpcm") ||
+    text.includes("flac")  // FLAC audio not browser-compatible
 
-  // Check for incompatible video features
+  // Incompatible video formats
   const hasIncompatibleVideo =
     text.includes("dolby vision") ||
     text.includes("dovi") ||
-    text.includes(".dv.") ||
-    text.includes("remux")  // REMUXes usually have lossless audio
+    /\.dv\./.test(text) ||
+    /\bdv\b/.test(text) ||
+    text.includes("remux") ||  // REMUXes have lossless audio
+    text.includes("bdremux") ||
+    text.includes("blu-ray") ||
+    text.includes("bluray remux")
 
-  // MKV with compatible codecs might work, but unreliable
-  const isMkv = /\.mkv$/i.test(filename || "") || text.includes(".mkv")
-
-  // MP4 with AAC is the safest choice
-  const hasCompatibleAudio =
-    text.includes("aac") ||
-    text.includes("opus") ||
-    text.includes("mp3") ||
-    text.includes("ddp") ||  // Dolby Digital Plus (E-AC3) has some browser support
-    text.includes("dd5.1") ||
-    text.includes("ac3")  // Basic AC3 has some support
-
-  // Prefer MP4/WebM with compatible audio
-  if (isCompatibleContainer && !hasIncompatibleAudio && hasCompatibleAudio) {
-    return true
+  // If we detect incompatible codecs, definitely not compatible
+  if (hasIncompatibleAudio || hasIncompatibleVideo) {
+    return false
   }
 
-  // MP4 without known incompatible codecs is probably OK
-  if (isCompatibleContainer && !hasIncompatibleAudio && !hasIncompatibleVideo) {
-    return true
-  }
+  // === CONTAINER CHECK ===
 
-  // MKV is generally not browser-compatible
+  // MKV is NOT browser-compatible (even with compatible codecs inside)
+  const isMkv = /\.mkv/i.test(text)
   if (isMkv) {
     return false
   }
 
-  return isCompatibleContainer && !hasIncompatibleAudio
+  // MP4/M4V/WebM containers are browser-compatible
+  const isCompatibleContainer =
+    /\.mp4/i.test(text) ||
+    /\.m4v/i.test(text) ||
+    /\.webm/i.test(text)
+
+  // === CODEC CHECK ===
+
+  // Best case: H.264/x264 with AAC - universally supported
+  const hasH264 = text.includes("x264") || text.includes("h264") || text.includes("h.264") || text.includes("avc")
+  const hasAAC = text.includes("aac")
+
+  // Also good: VP9/VP8 for WebM
+  const hasVP9 = text.includes("vp9") || text.includes("vp8")
+  const hasOpus = text.includes("opus") || text.includes("vorbis")
+
+  // H.265/HEVC has limited browser support (Safari, Edge) - allow with caution
+  const hasH265 = text.includes("x265") || text.includes("h265") || text.includes("h.265") || text.includes("hevc")
+
+  // AC3/EAC3 (Dolby Digital) has some browser support
+  const hasAC3 = text.includes("ac3") || text.includes("eac3") || text.includes("ddp") || text.includes("dd5.1") || text.includes("dd+")
+
+  // === COMPATIBILITY SCORING ===
+
+  // MP4 + H.264 + AAC = Gold standard (100% compatible)
+  if (isCompatibleContainer && hasH264 && hasAAC) {
+    return true
+  }
+
+  // WebM + VP9/VP8 + Opus/Vorbis = Also great
+  if (text.includes(".webm") && (hasVP9) && (hasOpus)) {
+    return true
+  }
+
+  // MP4 + H.264 + AC3 = Generally works
+  if (isCompatibleContainer && hasH264 && hasAC3) {
+    return true
+  }
+
+  // MP4 + H.265 + AAC = Works on Safari/Edge, may fail on Firefox/Chrome
+  // Allow it but it's not guaranteed
+  if (isCompatibleContainer && hasH265 && hasAAC) {
+    return true
+  }
+
+  // MP4 with H.264 (audio unspecified but no incompatible audio detected)
+  if (isCompatibleContainer && hasH264 && !hasIncompatibleAudio) {
+    return true
+  }
+
+  // If we have a compatible container and can identify compatible video codec
+  if (isCompatibleContainer && (hasH264 || hasVP9)) {
+    return true
+  }
+
+  // WEB-DL and WEBRip releases are typically browser-compatible (encoded for streaming)
+  const isWebRelease = text.includes("web-dl") || text.includes("webdl") || text.includes("webrip") || text.includes("web-rip")
+  if (isWebRelease && isCompatibleContainer) {
+    return true
+  }
+
+  // HDTV releases in MP4 are usually compatible
+  if (text.includes("hdtv") && isCompatibleContainer) {
+    return true
+  }
+
+  // If we only have container info (MP4/WebM) and no incompatible codecs detected, cautiously allow
+  if (isCompatibleContainer && !hasIncompatibleAudio && !hasIncompatibleVideo && !isMkv) {
+    // Only if we have SOME indication it might be compatible
+    if (hasH264 || hasAAC || hasAC3 || isWebRelease) {
+      return true
+    }
+  }
+
+  // Default: If we can't confirm compatibility, assume incompatible for browser safety
+  return false
 }
 
 /**
@@ -228,14 +299,32 @@ async function fetchStreams(
 
   try {
     console.log("Fetching streams from:", url)
-    const response = await fetch(url)
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "")
-      console.error("Provider response not ok:", response.status, errorText)
-      throw new Error(`Provider returned ${response.status}: ${errorText || response.statusText}`)
+
+    // Import fetch dynamically or from plugin
+    // For Tauri, we want to use the native fetch to bypass CORS
+    let fetchFn = globalThis.fetch;
+
+    const isTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+
+    let responseData: any;
+
+    if (isTauri && window.__TAURI__?.core?.invoke) {
+      console.log("Using Rust backend for stream fetching");
+      const jsonString = await window.__TAURI__.core.invoke<string>('fetch_url', { url });
+      responseData = JSON.parse(jsonString);
+    } else {
+      // Fallback or browser mode
+      const response = await fetch(url)
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "")
+        console.error("Provider response not ok:", response.status, errorText)
+        throw new Error(`Provider returned ${response.status}: ${errorText || response.statusText}`)
+      }
+      responseData = await response.json();
     }
 
-    const data: StremioResponse = await response.json()
+    const data: StremioResponse = responseData;
 
     if (!data.streams || !Array.isArray(data.streams)) {
       console.log("No streams array in response:", data)
@@ -393,17 +482,12 @@ export function useStreamResolver(): UseStreamResolverResult {
             }
           }
 
-          // No compatible streams at all - try the best one anyway (might work)
-          console.log("No browser-compatible streams found, trying best available:", bestOverall.title)
-          return {
-            url: bestOverall.url!,
-            title: bestOverall.title,
-            quality: bestOverall.quality,
-            hash: bestOverall.hash,
-            qualityWarning: `Warning: This format (${bestOverall.filename || 'unknown'}) may not play in your browser. Consider using the desktop app for full compatibility.`,
-            hasIncompatibleFormat: true,
-            incompatibleStreamUrl: bestOverall.url!,
-          }
+          // No compatible streams at all - throw error instead of trying incompatible format
+          console.log("No browser-compatible streams found. Available streams:", directUrlStreams.length)
+          throw new Error(
+            `No browser-compatible streams found. Available streams use formats (MKV, DTS, etc.) that won't play in your browser. ` +
+            `Try searching for a different release or use the desktop app for full format support.`
+          )
         }
 
         // No direct URLs - need to resolve through RealDebrid
@@ -413,24 +497,54 @@ export function useStreamResolver(): UseStreamResolverResult {
 
         // Step 2: Check RealDebrid cache availability
         const rd = createRDService(rdApiToken)
-        const hashes = sortedStreams.filter(s => !s.url).map(s => s.hash)
 
-        console.log("Checking RealDebrid cache for", hashes.length, "streams")
+        // Filter streams for browser compatibility before checking cache (unless in Tauri+MPV mode)
+        const streamsToCheck = skipCompatibilityCheck
+          ? sortedStreams.filter(s => !s.url)
+          : sortedStreams.filter(s => !s.url && s.isBrowserCompatible)
+
+        if (streamsToCheck.length === 0 && !skipCompatibilityCheck) {
+          // No compatible streams even before cache check
+          throw new Error(
+            `No browser-compatible streams found. Available streams use formats (MKV, DTS, etc.) that won't play in your browser. ` +
+            `Try searching for a different release or use the desktop app for full format support.`
+          )
+        }
+
+        const hashes = streamsToCheck.map(s => s.hash)
+
+        console.log("Checking RealDebrid cache for", hashes.length, "browser-compatible streams")
         const availability = await rd.checkInstantAvailability(hashes)
 
-        // Find first cached stream
-        const cachedStream = sortedStreams.find(stream => {
-          if (stream.url) return false // Skip direct URL streams (already handled above)
+        // Find first cached stream (already filtered for compatibility)
+        const cachedStream = streamsToCheck.find(stream => {
           const hashLower = stream.hash.toLowerCase()
           const hashData = availability[hashLower]
           return hashData?.rd && hashData.rd.length > 0
         })
 
         if (!cachedStream) {
+          // Check if there were incompatible cached streams we skipped
+          if (!skipCompatibilityCheck) {
+            const allHashes = sortedStreams.filter(s => !s.url).map(s => s.hash)
+            const allAvailability = await rd.checkInstantAvailability(allHashes)
+            const hasIncompatibleCached = sortedStreams.some(stream => {
+              if (stream.url || stream.isBrowserCompatible) return false
+              const hashData = allAvailability[stream.hash.toLowerCase()]
+              return hashData?.rd && hashData.rd.length > 0
+            })
+
+            if (hasIncompatibleCached) {
+              throw new Error(
+                `Cached streams are available but not in browser-compatible formats. ` +
+                `Use the desktop app for full format support, or try a different release.`
+              )
+            }
+          }
           throw new Error("No cached streams available. Try a different title or wait for caching.")
         }
 
-        console.log("Found cached stream:", cachedStream.title)
+        console.log("Found cached browser-compatible stream:", cachedStream.title)
 
         // Step 3: Get streamable URL from RealDebrid
         const streamUrl = await rd.getStreamableLink(cachedStream.hash)

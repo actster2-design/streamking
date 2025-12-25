@@ -3660,6 +3660,7 @@ version = "0.1.0"
 dependencies = [
  "libmpv2",
  "log",
+ "reqwest",
  "serde",
  "serde_json",
  "tauri",
