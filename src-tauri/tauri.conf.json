@@ -30,8 +30,7 @@
   "bundle": {
     "active": true,
     "targets": [
-      "deb",
-      "rpm"
+      "nsis"
     ],
     "icon": [
       "icons/32x32.png",

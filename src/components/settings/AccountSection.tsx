@@ -49,7 +49,8 @@ export function AccountSection() {
         // Browser: use fetch directly
         const rd = createRDService(rdApiToken)
         const user = await rd.getUser()
-        setRdAuth(rdApiToken, user)
+        // Legacy/manual token doesn't have OAuth refresh data
+        setRdAuth(rdApiToken, "", "", "", 0, user)
       } catch (err) {
         console.error("Token validation failed:", err)
         setError(err instanceof Error ? err.message : "Token validation failed")
@@ -82,14 +83,14 @@ export function AccountSection() {
           premium: 1,
           expiration: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         }
-        setRdAuth(tokenInput.trim(), placeholderUser)
+        setRdAuth(tokenInput.trim(), "", "", "", 0, placeholderUser)
         setIsEditing(false)
         setTokenInput("")
       } else {
         // In browser, use the service directly
         const rd = createRDService(tokenInput.trim())
         const user = await rd.getUser()
-        setRdAuth(tokenInput.trim(), user)
+        setRdAuth(tokenInput.trim(), "", "", "", 0, user)
         setIsEditing(false)
         setTokenInput("")
       }

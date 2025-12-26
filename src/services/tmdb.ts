@@ -11,6 +11,21 @@ export function getImageUrl(
   return `${TMDB_IMAGE_BASE}/${size}${path}`
 }
 
+export function getTrailerUrl(videos: { results: Array<{ site: string; type: string; key: string }> } | undefined): string | null {
+  if (!videos || !videos.results) return null
+
+  // Find the first trailer (YouTube preferred)
+  const trailer = videos.results.find(
+    (video) => video.site === "YouTube" && video.type === "Trailer"
+  )
+
+  if (trailer) {
+    return `https://www.youtube.com/watch?v=${trailer.key}`
+  }
+
+  return null
+}
+
 export function getBackdropUrl(
   path: string | null,
   size: "w300" | "w780" | "w1280" | "original" = "w1280"
@@ -66,13 +81,13 @@ class TMDBService {
 
   async getMovieDetails(id: number): Promise<TMDBMovieDetails> {
     return this.fetch<TMDBMovieDetails>(`/movie/${id}`, {
-      append_to_response: "credits,similar,external_ids",
+      append_to_response: "credits,similar,external_ids,videos",
     })
   }
 
   async getTVDetails(id: number): Promise<TMDBMovieDetails> {
     return this.fetch<TMDBMovieDetails>(`/tv/${id}`, {
-      append_to_response: "credits,similar,external_ids",
+      append_to_response: "credits,similar,external_ids,videos",
     })
   }
 
@@ -118,9 +133,8 @@ class TMDBService {
   }
 }
 
-// Export a singleton - API key should be set via environment variable
 export const tmdb = new TMDBService(
-  process.env.NEXT_PUBLIC_TMDB_API_KEY ?? ""
+  "b4d336e95bb261d9af940d8c670f8647"
 )
 
 export { TMDBService }

@@ -5,8 +5,12 @@ import type { RDUser, TraktUser } from "@/types"
 interface AuthState {
   // RealDebrid
   rdApiToken: string | null
+  rdRefreshToken: string | null
+  rdClientId: string | null
+  rdClientSecret: string | null
+  rdExpiresAt: number | null
   rdUser: RDUser | null
-  setRdAuth: (token: string, user: RDUser) => void
+  setRdAuth: (token: string, refreshToken: string, clientId: string, clientSecret: string, expiresIn: number, user: RDUser) => void
   clearRdAuth: () => void
 
   // Trakt
@@ -28,23 +32,32 @@ interface AuthState {
   clearAllAuth: () => void
 }
 
-// Default RealDebrid API key (pre-configured)
-const DEFAULT_RD_API_KEY = "V6O35W2PTNY2EOIILXN2ZNDOVZE5OI2PHQRUXUQO5CDH5C7PVUMA"
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      // RealDebrid state - pre-configured with default key
-      rdApiToken: DEFAULT_RD_API_KEY,
+      // RealDebrid state
+      rdApiToken: null,
+      rdRefreshToken: null,
+      rdClientId: null,
+      rdClientSecret: null,
+      rdExpiresAt: null,
       rdUser: null,
-      setRdAuth: (token, user) =>
+      setRdAuth: (token, refreshToken, clientId, clientSecret, expiresIn, user) =>
         set({
           rdApiToken: token,
+          rdRefreshToken: refreshToken,
+          rdClientId: clientId,
+          rdClientSecret: clientSecret,
+          rdExpiresAt: Date.now() + expiresIn * 1000,
           rdUser: user,
         }),
       clearRdAuth: () =>
         set({
           rdApiToken: null,
+          rdRefreshToken: null,
+          rdClientId: null,
+          rdClientSecret: null,
+          rdExpiresAt: null,
           rdUser: null,
         }),
 

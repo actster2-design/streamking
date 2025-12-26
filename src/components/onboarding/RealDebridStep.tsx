@@ -3,8 +3,7 @@
 import { useState } from "react"
 import { ExternalLink, Loader2, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useOnboarding } from "@/hooks/useOnboarding"
 import type { RDUser } from "@/types"
 
 interface RealDebridStepProps {
@@ -18,18 +17,56 @@ export function RealDebridStep({
   onValidate,
   onSuccess,
   isValidating,
-  error,
+  error: parentError,
 }: RealDebridStepProps) {
-  const [token, setToken] = useState("")
+  const { startRdAuth, pollRdAuth } = useOnboarding()
+  const [deviceCode, setDeviceCode] = useState<{
+    device_code: string
+    user_code: string
+    verification_url: string
+    direct_verification_url: string
+    interval: number
+    expires_in: number
+  } | null>(null)
   const [validatedUser, setValidatedUser] = useState<RDUser | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPolling, setIsPolling] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!token.trim()) return
+  const handleStartAuth = async () => {
+    try {
+      setError(null)
+      const code = await startRdAuth()
+      setDeviceCode(code)
 
-    const user = await onValidate(token.trim())
-    if (user) {
-      setValidatedUser(user)
+      // Start polling
+      setIsPolling(true)
+      const intervalId = setInterval(async () => {
+        try {
+          const user = await pollRdAuth(code.device_code)
+          if (user) {
+            clearInterval(intervalId)
+            setValidatedUser(user)
+            setIsPolling(false)
+          }
+        } catch (e) {
+          // If error (other than waiting), stop polling
+          clearInterval(intervalId)
+          setIsPolling(false)
+          setError("Authentication failed. Please try again.")
+        }
+      }, code.interval * 1000)
+
+      // Stop polling after expiration
+      setTimeout(() => {
+        clearInterval(intervalId)
+        if (!validatedUser) {
+          setIsPolling(false)
+          setError("Code expired. Please try again.")
+        }
+      }, code.expires_in * 1000)
+
+    } catch (e) {
+      setError("Failed to start authentication")
     }
   }
 
@@ -69,65 +106,48 @@ export function RealDebridStep({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="rd-token">RealDebrid API Token</Label>
-        <Input
-          id="rd-token"
-          type="password"
-          placeholder="Enter your API token"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          disabled={isValidating}
-          className="font-mono"
-        />
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
-      </div>
+    <div className="space-y-6">
+      {!deviceCode ? (
+        <div className="space-y-4">
+          <p className="text-muted-foreground">
+            Connect your RealDebrid account to enable high-speed secure streaming.
+          </p>
+          <Button onClick={handleStartAuth} className="w-full" size="lg">
+            Connect RealDebrid
+          </Button>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      ) : (
+        <div className="space-y-6 text-center">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold">Enter Code</h3>
+            <div className="flex items-center justify-center gap-4">
+              <div className="text-3xl font-mono tracking-widest bg-muted p-4 rounded-lg border">
+                {deviceCode.user_code}
+              </div>
+            </div>
+          </div>
 
-      <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-        <p className="text-sm text-muted-foreground">
-          To get your API token:
-        </p>
-        <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
-          <li>Go to RealDebrid API Key page</li>
-          <li>Copy your private API token</li>
-          <li>Paste it above</li>
-        </ol>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          asChild
-        >
-          <a
-            href="https://real-debrid.com/apitoken"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Open RealDebrid API Page
-          </a>
-        </Button>
-      </div>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              Please visit strict URL to authorize:
+            </p>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => window.open(deviceCode.verification_url, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4" />
+              {deviceCode.verification_url}
+            </Button>
 
-      <Button
-        type="submit"
-        className="w-full"
-        size="lg"
-        disabled={!token.trim() || isValidating}
-      >
-        {isValidating ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            Validating...
-          </>
-        ) : (
-          "Connect RealDebrid"
-        )}
-      </Button>
-    </form>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Waiting for authorization...
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

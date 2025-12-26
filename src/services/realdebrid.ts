@@ -64,6 +64,103 @@ class RealDebridService {
   }
 
   /**
+   * OAuth2: Get Device Code
+   * POST /oauth/v2/device/code
+   */
+  async getDeviceCode(clientId: string): Promise<{
+    device_code: string
+    user_code: string
+    verification_url: string
+    expires_in: number
+    interval: number
+    direct_verification_url: string
+  }> {
+    const params = new URLSearchParams()
+    params.append("client_id", clientId)
+    params.append("new_credentials", "yes")
+
+    const res = await fetch(`${RD_BASE_URL}/oauth/v2/device/code`, {
+      method: "POST",
+      body: params,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to get device code: ${res.status}`)
+    }
+
+    return res.json()
+  }
+
+  /**
+   * OAuth2: Get Credentials (Exchange Device Code for Token)
+   * POST /oauth/v2/device/credentials
+   */
+  async getCredentials(
+    clientId: string,
+    code: string
+  ): Promise<{
+    client_id: string
+    client_secret: string
+  }> {
+    const params = new URLSearchParams()
+    params.append("client_id", clientId)
+    params.append("code", code)
+
+    const res = await fetch(`${RD_BASE_URL}/oauth/v2/device/credentials`, {
+      method: "POST",
+      body: params,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    })
+
+    if (!res.ok) {
+      // Returns 400 while waiting for user approval, handled by caller polling
+      throw new Error("WAITING_FOR_APPROVAL")
+    }
+
+    return res.json()
+  }
+
+  /**
+   * OAuth2: Get Token (Exchange Client ID/Secret for Access Token)
+   * POST /oauth/v2/token
+   */
+  async getToken(
+    clientId: string,
+    clientSecret: string,
+    code: string
+  ): Promise<{
+    access_token: string
+    expires_in: number
+    token_type: string
+    refresh_token: string
+  }> {
+    const params = new URLSearchParams()
+    params.append("client_id", clientId)
+    params.append("client_secret", clientSecret)
+    params.append("code", code)
+    params.append("grant_type", "http://oauth.net/grant_type/device/1.0")
+
+    const res = await fetch(`${RD_BASE_URL}/oauth/v2/token`, {
+      method: "POST",
+      body: params,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to get token: ${res.status}`)
+    }
+
+    return res.json()
+  }
+
+  /**
    * Get current user info
    */
   /**

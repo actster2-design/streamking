@@ -64,6 +64,7 @@ export default function Home() {
         onSearchClick={() => setShowSearch(true)}
         onSettingsClick={() => setShowSettings(true)}
       />
+      <div className="absolute top-20 right-4 text-xs text-gray-500 z-50">v0.5 - Fixes Applied</div>
 
       {/* Hero Section */}
       {trending && trending.length > 0 ? (
@@ -126,14 +127,7 @@ export default function Home() {
       </div>
 
       {/* No API Key Warning */}
-      {!process.env.NEXT_PUBLIC_TMDB_API_KEY && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-sm">
-          <p className="font-medium">TMDB API Key Missing</p>
-          <p className="text-yellow-500/80 mt-1">
-            Add NEXT_PUBLIC_TMDB_API_KEY to your .env.local file to load content.
-          </p>
-        </div>
-      )}
+
     </div>
   )
 }

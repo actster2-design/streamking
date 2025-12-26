@@ -345,6 +345,9 @@ async function fetchStreams(
 /**
  * Sort streams by quality preference
  */
+/**
+ * Sort streams by quality preference and English language priority
+ */
 function sortByQualityPreference(
   streams: ExtendedStreamItem[],
   preference: "4k" | "1080p" | "720p" | "auto"
@@ -357,16 +360,49 @@ function sortByQualityPreference(
     "480p": 3,
   }
 
+  // Keywords to prioritize/deprioritize
+  const englishKeywords = ["eng", "english", "multi"]
+  const negativeKeywords = ["latino", "french", "german", "italian", "spanish", "rus", "dubbed"]
+
+  const getLanguageScore = (stream: ExtendedStreamItem) => {
+    const text = (stream.title + " " + (stream.filename || "")).toLowerCase()
+
+    // Check for negative keywords first (non-English dubbed)
+    // But be careful with "multi" which might contain both
+    if (negativeKeywords.some(k => text.includes(k)) && !text.includes("multi")) {
+      return 2 // Low priority
+    }
+
+    // Explicit English or Multi
+    if (englishKeywords.some(k => text.includes(k))) {
+      return 0 // High priority
+    }
+
+    // Default (assume English if not specified, common in scene releases)
+    return 1
+  }
+
   const sorted = [...streams].sort((a, b) => {
+    // 1. Language Priority
+    const scoreA = getLanguageScore(a)
+    const scoreB = getLanguageScore(b)
+
+    if (scoreA !== scoreB) {
+      return scoreA - scoreB
+    }
+
+    // 2. Quality Priority
     const aOrder = qualityOrder[a.quality] ?? 99
     const bOrder = qualityOrder[b.quality] ?? 99
 
-    // If same quality, prefer more seeds
-    if (aOrder === bOrder) {
-      return (b.seeds ?? 0) - (a.seeds ?? 0)
+    if (aOrder !== bOrder) {
+      // If preference is auto, trust standard order (4k -> 1080p)
+      // If preference is set, we filter later, so here just sort by quality descending
+      return aOrder - bOrder
     }
 
-    return aOrder - bOrder
+    // 3. Seed Count
+    return (b.seeds ?? 0) - (a.seeds ?? 0)
   })
 
   // If preference is not "auto", prioritize that quality

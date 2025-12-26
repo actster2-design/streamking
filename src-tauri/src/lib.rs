@@ -21,16 +21,23 @@ async fn fetch_url(url: String) -> Result<String, String> {
         
     let response = client.get(&url)
         .send()
-        .await
-        .map_err(|e| e.to_string())?;
-        
-    if !response.status().is_success() {
-        return Err(format!("Request failed with status: {}", response.status()));
+        .await;
+
+    match response {
+        Ok(res) => {
+            if !res.status().is_success() {
+                return Err(format!("Request failed with status: {}", res.status()));
+            }
+            res.text().await.map_err(|e| e.to_string())
+        }
+        Err(e) => {
+            log::error!("Fetch URL failed: {}", e);
+            if let Some(source) = std::error::Error::source(&e) {
+                log::error!("Caused by: {}", source);
+            }
+            Err(e.to_string())
+        }
     }
-    
-    response.text()
-        .await
-        .map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

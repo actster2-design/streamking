@@ -5,7 +5,7 @@ import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import { Play, Info, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getBackdropUrl } from "@/services/tmdb"
+import { getBackdropUrl, getTrailerUrl } from "@/services/tmdb"
 import type { TMDBMovie } from "@/types"
 
 interface HeroSectionProps {
@@ -36,10 +36,53 @@ export function HeroSection({ items, onPlay, onMoreInfo }: HeroSectionProps) {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % items.length)
       setImageLoaded(false)
+      setShowVideo(false) // Reset video state on slide change
     }, 10000)
 
     return () => clearInterval(interval)
   }, [items.length])
+
+  // Fetch trailer and handle video playback delay
+  const [trailerUrl, setTrailerUrl] = useState<string | null>(null)
+  const [showVideo, setShowVideo] = useState(false)
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout
+    let mounted = true
+
+    const loadTrailer = async () => {
+      if (!featured) return
+
+      try {
+        // Fetch details to get videos
+        // We use the appropriate method based on media_type
+        const details = featured.media_type === 'tv'
+          ? await import("@/services/tmdb").then(m => m.tmdb.getTVDetails(featured.id))
+          : await import("@/services/tmdb").then(m => m.tmdb.getMovieDetails(featured.id))
+
+        const url = getTrailerUrl(details.videos)
+
+        if (mounted && url) {
+          setTrailerUrl(url)
+          // Start video after 2s delay
+          timeout = setTimeout(() => {
+            if (mounted) setShowVideo(true)
+          }, 2000)
+        }
+      } catch (e) {
+        console.error("Failed to load trailer", e)
+      }
+    }
+
+    setTrailerUrl(null)
+    setShowVideo(false)
+    loadTrailer()
+
+    return () => {
+      mounted = false
+      clearTimeout(timeout)
+    }
+  }, [featured])
 
   if (!featured) return null
 
@@ -49,34 +92,44 @@ export function HeroSection({ items, onPlay, onMoreInfo }: HeroSectionProps) {
 
   return (
     <div className="relative h-[75vh] md:h-[85vh] w-full overflow-hidden">
-      {/* Backdrop Image */}
+      {/* Backdrop Image / Video */}
       <AnimatePresence mode="wait">
         <motion.div
           key={featured.id}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 1 }}
           className="absolute inset-0"
         >
-          {backdropUrl ? (
-            <Image
-              src={backdropUrl}
-              alt={title}
-              fill
-              className="object-cover"
-              priority
-              quality={90}
-              onLoad={() => setImageLoaded(true)}
-            />
+          {showVideo && trailerUrl ? (
+            <div className="absolute inset-0 bg-black">
+              <iframe
+                src={`${trailerUrl.replace("watch?v=", "embed/")}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailerUrl.split("v=")[1]}`}
+                className="w-full h-full object-cover pointer-events-none scale-125" // Scale up to hide potential black bars/controls
+                allow="autoplay; encrypted-media"
+              />
+              {/* Overlay to intercept clicks and ensure background feel */}
+              <div className="absolute inset-0 bg-transparent" />
+            </div>
           ) : (
-            <div className="absolute inset-0 bg-muted" />
+            backdropUrl && (
+              <Image
+                src={backdropUrl}
+                alt={title}
+                fill
+                className="object-cover"
+                priority
+                quality={90}
+                onLoad={() => setImageLoaded(true)}
+              />
+            )
           )}
         </motion.div>
       </AnimatePresence>
 
       {/* Loading state */}
-      {!imageLoaded && backdropUrl && (
+      {!imageLoaded && !showVideo && backdropUrl && (
         <div className="absolute inset-0 bg-muted animate-pulse" />
       )}
 
@@ -151,11 +204,10 @@ export function HeroSection({ items, onPlay, onMoreInfo }: HeroSectionProps) {
           {items.slice(0, 5).map((_, index) => (
             <button
               key={index}
-              className={`rounded-full transition-all duration-300 ${
-                index === currentIndex
-                  ? "w-8 h-2 bg-white"
-                  : "w-2 h-2 bg-white/40 hover:bg-white/60"
-              }`}
+              className={`rounded-full transition-all duration-300 ${index === currentIndex
+                ? "w-8 h-2 bg-white"
+                : "w-2 h-2 bg-white/40 hover:bg-white/60"
+                }`}
               onClick={() => {
                 setCurrentIndex(index)
                 setImageLoaded(false)

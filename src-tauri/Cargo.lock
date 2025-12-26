@@ -1894,21 +1894,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libmpv2"
-version = "4.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e0c3802b4bb1a18adbf5659b078ce24cb8e16c79ff695557f4e10af2a44722a"
-dependencies = [
- "libmpv2-sys",
-]
-
-[[package]]
-name = "libmpv2-sys"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42124ba90561beede41d5e6ef64eef63fc1395cf83217e3dd1157294f7dcdb56"
-
-[[package]]
 name = "libredox"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3658,7 +3643,6 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "stream-king"
 version = "0.1.0"
 dependencies = [
- "libmpv2",
  "log",
  "reqwest",
  "serde",

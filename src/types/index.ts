@@ -39,6 +39,13 @@ export interface TMDBMovieDetails extends TMDBMovie {
     imdb_id: string | null
     tvdb_id: number | null
   }
+  videos?: {
+    results: Array<{
+      key: string
+      site: string
+      type: string
+    }>
+  }
 }
 
 export interface TMDBSeason {

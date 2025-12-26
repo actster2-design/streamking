@@ -16,6 +16,8 @@ interface UseOnboardingReturn {
   nextStep: () => void
   prevStep: () => void
   validateRdToken: (token: string) => Promise<RDUser | null>
+  startRdAuth: () => Promise<{ device_code: string; user_code: string; verification_url: string; interval: number; expires_in: number; direct_verification_url: string }>
+  pollRdAuth: (deviceCode: string) => Promise<RDUser | null>
   completeOnboarding: () => void
   canSkipProvider: boolean
 }
@@ -51,30 +53,57 @@ export function useOnboarding(): UseOnboardingReturn {
     }
   }, [currentStep])
 
-  const validateRdToken = useCallback(async (token: string): Promise<RDUser | null> => {
-    setIsValidating(true)
-    setError(null)
+  // Placeholder Client ID for open source app (should be replaced with actual registered ID)
+  const RD_CLIENT_ID = "X245A4XAIBGVM"
 
+  const startRdAuth = useCallback(async () => {
     try {
-      const rd = createRDService(token)
-      const user = await rd.getUser()
+      // Create service without token for auth flow
+      const rd = createRDService("")
+      return await rd.getDeviceCode(RD_CLIENT_ID)
+    } catch (e) {
+      console.error(e)
+      throw new Error("Failed to start RealDebrid authentication")
+    }
+  }, [])
 
-      // Check if premium
-      if (!user.premium) {
-        setError("RealDebrid account must have premium status")
-        return null
-      }
+  const pollRdAuth = useCallback(async (deviceCode: string) => {
+    try {
+      const rd = createRDService("")
+      const { client_id, client_secret } = await rd.getCredentials(RD_CLIENT_ID, deviceCode)
 
-      // Save to store
-      setRdAuth(token, user)
+      // If we got credentials, we can now get the token
+      const tokenData = await rd.getToken(client_id, client_secret, deviceCode)
+
+      // Get user info with the new token
+      const rdWithToken = createRDService(tokenData.access_token)
+      const user = await rdWithToken.getUser()
+
+      // Save everything to store
+      setRdAuth(
+        tokenData.access_token,
+        tokenData.refresh_token,
+        client_id,
+        client_secret,
+        tokenData.expires_in,
+        user
+      )
+
       return user
-    } catch {
-      setError("Invalid API token. Please check and try again.")
-      return null
-    } finally {
-      setIsValidating(false)
+    } catch (e: any) {
+      if (e.message === "WAITING_FOR_APPROVAL") {
+        return null // Still waiting
+      }
+      throw e
     }
   }, [setRdAuth])
+
+  const validateRdToken = useCallback(async (token: string): Promise<RDUser | null> => {
+    // Legacy method support if needed, or remove. 
+    // Keeping for "manual token enter" fallback if we wanted it, but we are moving to OAuth.
+    // We'll update the interface to strictly use OAuth ideally.
+    return null
+  }, [])
 
   const completeOnboarding = useCallback(() => {
     setOnboarded(true)
@@ -88,6 +117,8 @@ export function useOnboarding(): UseOnboardingReturn {
     nextStep,
     prevStep,
     validateRdToken,
+    startRdAuth,
+    pollRdAuth,
     completeOnboarding,
     canSkipProvider: providers.length > 0,
   }
