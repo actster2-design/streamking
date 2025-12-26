@@ -22,7 +22,7 @@ function generateId(): string {
 
 // Pre-configured Comet provider with RealDebrid
 // Config: maxResultsPerResolution=0, maxSize=0, cachedOnly=false, removeTrash=true, resultFormat=all, debridService=realdebrid
-const DEFAULT_COMET_URL = "https://comet.elfhosted.com/eyJtYXhSZXN1bHRzUGVyUmVzb2x1dGlvbiI6MCwibWF4U2l6ZSI6MCwiY2FjaGVkT25seSI6ZmFsc2UsInJlbW92ZVRyYXNoIjp0cnVlLCJyZXN1bHRGb3JtYXQiOlsiYWxsIl0sImRlYnJpZFNlcnZpY2UiOiJyZWFsZGVicmlkIiwiZGVicmlkQXBpS2V5IjoiVjZPMzVXMlBUTlkyRU9JSUxYTjJaTkRPVlpFNU9JMlBIUVJVWFVRTzVDREg1QzdQVlVNQSIsImRlYnJpZFN0cmVhbVByb3h5UGFzc3dvcmQiOiIiLCJsYW5ndWFnZXMiOnsiZXhjbHVkZSI6W10sInByZWZlcnJlZCI6WyJlbiJdfSwicmVzb2x1dGlvbnMiOnt9LCJvcHRpb25zIjp7InJlbW92ZV9yYW5rc191bmRlciI6LTEwMDAwMDAwMDAwLCJhbGxvd19lbmdsaXNoX2luX2xhbmd1YWdlcyI6ZmFsc2UsInJlbW92ZV91bmtub3duX2xhbmd1YWdlcyI6ZmFsc2V9fQ=="
+const DEFAULT_COMET_URL = "https://comet.elfhosted.com/eyJtYXhSZXN1bHRzUGVyUmVzb2x1dGlvbiI6MCwibWF4U2l6ZSI6MCwiY2FjaGVkT25seSI6ZmFsc2UsInJlbW92ZVRyYXNoIjp0cnVlLCJyZXN1bHRGb3JtYXQiOlsiYWxsIl0sImRlYnJpZFNlcnZpY2UiOiJyZWFsZGVicmlkIiwiZGVicmlkQXBpS2V5IjoiVjZPMzVXMlBUTlkyRU9JSUxYTjJaTkRPVlpFNU9JMlBIUVJVWFVRTzVDREg1QzdQVlVNQSIsImRlYnJpZFN0cmVhbVByb3h5UGFzc3dvcmQiOiIiLCJsYW5ndWFnZXMiOnsiZXhjbHVkZSI6W10sInByZWZlcnJlZCI6WyJlbiJdfSwicmVzb2x1dGlvbnMiOnsicjIxNjBwIjpmYWxzZX0sIm9wdGlvbnMiOnsicmVtb3ZlX3JhbmtzX3VuZGVyIjotMTAwMDAwMDAwMDAsImFsbG93X2VuZ2xpc2hfaW5fbGFuZ3VhZ2VzIjpmYWxzZSwicmVtb3ZlX3Vua25vd25fbGFuZ3VhZ2VzIjpmYWxzZX19/manifest.json"
 
 const DEFAULT_PROVIDER: ProviderConfig = {
   id: "comet-default",
@@ -94,9 +94,20 @@ export const useProvidersStore = create<ProvidersState>()(
     }),
     {
       name: "stream-king-providers",
-      version: 2,
+      version: 3,
       migrate: (persistedState, version) => {
         const state = persistedState as ProvidersState
+
+        // v3 migration: Update default provider URL
+        if (version < 3 && state.providers) {
+          state.providers = state.providers.map(p => {
+            if (p.id === 'comet-default') {
+              return { ...p, url: DEFAULT_COMET_URL }
+            }
+            return p
+          })
+        }
+
         // If no providers configured, add the default Comet provider
         if (!state.providers || state.providers.length === 0) {
           return {

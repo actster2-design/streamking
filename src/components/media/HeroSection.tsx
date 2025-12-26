@@ -120,7 +120,6 @@ export function HeroSection({ items, onPlay, onMoreInfo }: HeroSectionProps) {
                 fill
                 className="object-cover"
                 priority
-                quality={90}
                 onLoad={() => setImageLoaded(true)}
               />
             )

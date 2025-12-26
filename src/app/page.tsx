@@ -64,7 +64,7 @@ export default function Home() {
         onSearchClick={() => setShowSearch(true)}
         onSettingsClick={() => setShowSettings(true)}
       />
-      <div className="absolute top-20 right-4 text-xs text-gray-500 z-50">v0.5 - Fixes Applied</div>
+
 
       {/* Hero Section */}
       {trending && trending.length > 0 ? (

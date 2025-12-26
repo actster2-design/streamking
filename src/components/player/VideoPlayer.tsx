@@ -50,11 +50,11 @@ export function VideoPlayer() {
   // Get resume position
   const resumePosition = currentMedia
     ? getProgress(
-        currentMedia.tmdbId,
-        currentMedia.mediaType,
-        currentMedia.season,
-        currentMedia.episode
-      )
+      currentMedia.tmdbId,
+      currentMedia.mediaType,
+      currentMedia.season,
+      currentMedia.episode
+    )
     : null
 
   // Save progress periodically
@@ -194,7 +194,6 @@ export function VideoPlayer() {
             title={title}
             poster={posterUrl ?? undefined}
             playsInline
-            autoPlay
             className="w-full h-full"
             onTimeUpdate={(detail) => {
               const duration = playerRef.current?.duration ?? 0
@@ -202,18 +201,31 @@ export function VideoPlayer() {
             }}
             onEnded={handleEnded}
             onCanPlay={() => {
+              // Retrieve player instance
+              const player = playerRef.current
+              if (!player) return
+
               // Seek to resume position if available
               if (
                 resumePosition &&
                 resumePosition.progress > 5 &&
-                resumePosition.progress < 95 &&
-                playerRef.current
+                resumePosition.progress < 95
               ) {
-                const duration = playerRef.current.duration
+                const duration = player.duration
                 if (duration) {
                   const seekTime = (resumePosition.progress / 100) * duration
-                  playerRef.current.currentTime = seekTime
+                  player.currentTime = seekTime
                 }
+              }
+
+              // Handle Autoplay manually to catch errors (e.g. reduced motion)
+              if (player.paused) {
+                player.play().catch(e => {
+                  console.warn("Autoplay blocked (likely reduced motion or permissions):", e.message)
+                  // Optionally try muted:
+                  // player.muted = true
+                  // player.play().catch(console.error)
+                })
               }
             }}
           >
@@ -221,7 +233,8 @@ export function VideoPlayer() {
             <DefaultVideoLayout icons={defaultLayoutIcons} />
           </MediaPlayer>
         </motion.div>
-      )}
-    </AnimatePresence>
+      )
+      }
+    </AnimatePresence >
   )
 }

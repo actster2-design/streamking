@@ -503,7 +503,6 @@ export function useStreamResolver(): UseStreamResolverResult {
             if (qualityDrop > 0) {
               qualityWarning = `Best quality (${bestOverall.quality}) unavailable in browser-compatible format. Playing ${bestCompatible.quality} instead. For full quality, use the desktop app.`
               incompatibleStreamUrl = bestOverall.url
-              console.log("Quality warning:", qualityWarning)
             }
 
             console.log("Using compatible stream:", bestCompatible.title)
